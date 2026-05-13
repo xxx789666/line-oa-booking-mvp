@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+.DS_Store
+*.log
+.clasp.json
+.claspignore.local
+coverage/
+
+# Dispatch task artifacts (per-worker, regenerated)
+.dispatch/tasks/*/ipc/
