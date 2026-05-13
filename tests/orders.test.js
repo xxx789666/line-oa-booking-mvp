@@ -39,3 +39,67 @@ describe('OrdersRepo (read)', () => {
     expect(Orders.findById('NOPE')).toBeNull();
   });
 });
+
+describe('OrdersRepo (write)', () => {
+  beforeEach(() => {
+    installGasMocks({
+      Orders: [ORDERS_HEADER]
+    }, { properties: { SPREADSHEET_ID: 'fake-id' } });
+  });
+
+  it('creates an order and returns the order_id', () => {
+    const orderId = Orders.create({
+      line_user_id: 'U_x',
+      customer_name: 'X',
+      service_id: 'S001',
+      staff_id: 'ST001',
+      start_at: '2026-06-01T02:00:00Z',
+      end_at:   '2026-06-01T03:00:00Z',
+      price: 800,
+      payment_method: 'stub',
+      note: ''
+    });
+    expect(orderId).toMatch(/^ORD-/);
+    const found = Orders.findById(orderId);
+    expect(found.customer_name).toBe('X');
+    expect(found.status).toBe('confirmed');
+    expect(found.payment_status).toBe('paid');
+  });
+
+  it('refuses to double-book the same (staff, start_at)', () => {
+    Orders.create({
+      line_user_id: 'U_a', customer_name: 'A',
+      service_id: 'S001', staff_id: 'ST001',
+      start_at: '2026-06-01T02:00:00Z', end_at: '2026-06-01T03:00:00Z',
+      price: 800, payment_method: 'stub'
+    });
+    expect(() => Orders.create({
+      line_user_id: 'U_b', customer_name: 'B',
+      service_id: 'S001', staff_id: 'ST001',
+      start_at: '2026-06-01T02:00:00Z', end_at: '2026-06-01T03:00:00Z',
+      price: 800, payment_method: 'stub'
+    })).toThrow(/slot_taken/);
+  });
+
+  it('cancels an order', () => {
+    const orderId = Orders.create({
+      line_user_id: 'U_a', customer_name: 'A',
+      service_id: 'S001', staff_id: 'ST001',
+      start_at: '2026-06-01T02:00:00Z', end_at: '2026-06-01T03:00:00Z',
+      price: 800, payment_method: 'stub'
+    });
+    Orders.cancel(orderId);
+    expect(Orders.findById(orderId).status).toBe('cancelled');
+  });
+
+  it('marks reminded_at', () => {
+    const orderId = Orders.create({
+      line_user_id: 'U_a', customer_name: 'A',
+      service_id: 'S001', staff_id: 'ST001',
+      start_at: '2026-06-01T02:00:00Z', end_at: '2026-06-01T03:00:00Z',
+      price: 800, payment_method: 'stub'
+    });
+    Orders.markReminded(orderId);
+    expect(Orders.findById(orderId).reminded_at).toBeTruthy();
+  });
+});
