@@ -178,6 +178,10 @@ function doPost(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
 // Local-only DI hook
 if (typeof module !== 'undefined') {
   module.exports = { _dispatchGet, _dispatchPost, _setRepos(r) { _injectedRepos = r; } };
