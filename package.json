@@ -1,0 +1,21 @@
+{
+  "name": "line-oa-booking",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-business LINE OA booking MVP (Google Apps Script backend)",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "push": "clasp push",
+    "open": "clasp open",
+    "deploy": "clasp deploy --description \"v$npm_package_version\""
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.97",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
