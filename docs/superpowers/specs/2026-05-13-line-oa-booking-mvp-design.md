@@ -241,8 +241,7 @@ Response: `{ slots: ["09:00", "09:15", "10:30", ...] }`
 Body: `{ service_id, staff_id, start_at, idToken, note? }`
 Response: `{ order_id, success: true }` or `{ success: false, error: "slot_taken" }`
 
-### 5.5 `GET ?action=myBookings`
-Header: `Authorization: Bearer <idToken>`
+### 5.5 `GET ?action=myBookings&idToken=<token>`
 Response: `{ orders: [...] }`
 
 ### 5.6 `POST ?action=cancel`
@@ -271,7 +270,7 @@ Response: `{ success: true }` or `{ success: false, error: "too_late" }`
 | **idToken 過期** | 回 401，LIFF JS 重打 `liff.getIDToken()` 再試 |
 | **Sheet 欄位被老闆改壞** | 啟動時 `SettingsRepo` 驗 schema，缺欄位丟 `INFO` Log + 用預設值 |
 | **Calendar 寫入失敗** | 訂單仍成立，`calendar_event_id` 留空 + Log；下次 cron 補同步 |
-| **客人重複按確認** | 前端 button disable + 後端用 `(line_user_id, start_at, staff_id)` 去重 |
+| **客人重複按確認** | 前端 button disable + 後端用 `(line_user_id, start_at)` 去重（呼應 §12 Q2：同客同時段只一筆）|
 | **時區** | GAS / Sheet 全用 `Asia/Taipei`，存 ISO 8601 含時區 |
 | **客人變更 LINE 頭像/名稱** | 訂單存 snapshot；不追同步 |
 
@@ -334,6 +333,20 @@ D:\line官方網站訂閱系統\
 | `CALENDAR_ID` | 商家 Google Calendar ID |
 | `STAGING` | `true` / `false`（決定送測試或正式訊息） |
 
+### 8.4 GAS OAuth Scopes（`appsscript.json` 必填）
+```json
+{
+  "timeZone": "Asia/Taipei",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.scriptapp"
+  ],
+  "webapp": { "access": "ANYONE_ANONYMOUS", "executeAs": "USER_DEPLOYING" }
+}
+```
+
 ---
 
 ## 9. 測試策略
@@ -366,7 +379,7 @@ GAS 無原生單元測試框架，策略如下：
 
 | 階段 | 子系統 |
 |------|--------|
-| v2 | 真實金流（ECPay 或 NewebPay）— 替換 PaymentAdapter |
+| v2 | 真實金流（ECPay 或 NewebPay）— 替換 PaymentAdapter。**注意**：v1 的 `LockService.tryLock(10s)` 對 stub 沒問題，但接真實金流時付款 redirect 可能超過 10s，需把付款流程拆出鎖、改用「先佔位 pending → 確認後 paid」兩段式 |
 | v3 | 會員紅利、消費歷史 |
 | v4 | 部落格 / 文章 |
 | v5 | 多商家 SaaS（需要重寫資料模型、加 shop_id） |
