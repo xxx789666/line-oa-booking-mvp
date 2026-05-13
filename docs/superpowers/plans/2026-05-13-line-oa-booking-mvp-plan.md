@@ -224,7 +224,7 @@ git commit -m "chore: add GAS manifest with required OAuth scopes"
 - [ ] **Step 1: Create directory structure**
 
 ```powershell
-mkdir src\repo, src\service, src\triggers, src\utils, src\liff, tests\__mocks__
+mkdir src, src\repo, src\service, src\triggers, src\utils, src\liff, tests, tests\__mocks__
 ```
 
 - [ ] **Step 2: Create placeholder files**
@@ -319,6 +319,8 @@ A browser will open. Sign in with the Google account that will OWN the GAS proje
 clasp create --type standalone --title "LINE-OA-Booking-MVP" --rootDir .
 ```
 Expected: creates `.clasp.json` containing `scriptId`. Also prints the Apps Script URL.
+
+**First-time gotcha**: if you see `Error: User has not enabled the Apps Script API`, visit https://script.google.com/home/usersettings once, toggle "Apps Script API" ON, then retry the `clasp create` command.
 
 - [ ] **Step 4: Verify push works (smoke push of placeholders)**
 
@@ -2456,6 +2458,8 @@ Open GAS editor (`clasp open`) → ⚙ Project Settings → Script Properties �
 | `LINE_MESSAGING_CHANNEL_TOKEN` | (from Step 4) |
 | `LIFF_ID` | (from Step 3) |
 | `STAGING` | `false` |
+
+**Note**: `LIFF_ID` is also required at runtime by Task 19's HTML template (consumed via `PropertiesService` to inject into the page). It's listed above. Spec §8.3 omits it — that's a spec gap noted here, not a plan gap.
 
 - [ ] **Step 6: Commit a README.md documenting all this**
 
