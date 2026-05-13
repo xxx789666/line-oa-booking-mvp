@@ -1,0 +1,12 @@
+node_modules/**
+tests/**
+docs/**
+.git/**
+.gitignore
+.clasp.json
+jest.config.js
+package.json
+package-lock.json
+README.md
+**/*.test.js
+**/__mocks__/**
