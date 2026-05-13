@@ -2,9 +2,29 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>預約</title>
+  <style>
+    <?!= include('liff/style') ?>
+  </style>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <div id="app">Loading…</div>
+  <header class="bar">
+    <span id="header-title">預約</span>
+  </header>
+  <main id="app">
+    <div class="loading" id="loading">載入中…</div>
+  </main>
+  <footer class="bar bottom">
+    <button id="back-btn" class="ghost" hidden>← 上一步</button>
+  </footer>
+  <script>
+    window.__API_URL__ = '<?= ScriptApp.getService().getUrl() ?>';
+    window.__LIFF_ID__ = '<?= PropertiesService.getScriptProperties().getProperty("LIFF_ID") ?>';
+  </script>
+  <script>
+    <?!= include('liff/app') ?>
+  </script>
 </body>
 </html>
