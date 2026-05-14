@@ -8,6 +8,10 @@ var SettingsRepo = (function () {
     return SpreadsheetApp.openById(id);
   }
 
+  function _trim(v) {
+    return typeof v === 'string' ? v.trim() : v;
+  }
+
   function _readSheet(sheetName) {
     const cached = _cache[sheetName];
     if (cached && (Date.now() - cached.at < _CACHE_TTL_MS)) return cached.data;
@@ -15,10 +19,10 @@ var SettingsRepo = (function () {
     if (!sheet) throw new Error('sheet_not_found:' + sheetName);
     const rows = sheet.getDataRange().getValues();
     if (rows.length === 0) return [];
-    const header = rows[0];
+    const header = rows[0].map(_trim);
     const data = rows.slice(1).map(r => {
       const obj = {};
-      header.forEach((h, i) => { obj[h] = r[i]; });
+      header.forEach((h, i) => { obj[h] = _trim(r[i]); });
       return obj;
     });
     _cache[sheetName] = { at: Date.now(), data };

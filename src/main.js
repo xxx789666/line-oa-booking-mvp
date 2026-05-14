@@ -182,6 +182,66 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
+// ===========================================================================
+// Top-level API exposed to LIFF frontend via google.script.run.
+// google.script.run is the GAS-native bridge; it bypasses CORS and works
+// inside the HtmlService iframe sandbox (where the LIFF page actually runs at
+// script.googleusercontent.com, not script.google.com).
+// ===========================================================================
+
+function _unwrap(envelope) {
+  if (envelope && envelope.status >= 400) {
+    var err = new Error((envelope.body && envelope.body.error) || 'internal_error');
+    err.code = envelope.body && envelope.body.error;
+    throw err;
+  }
+  return envelope.body;
+}
+
+function api_services() {
+  return SettingsRepo.listServices();
+}
+
+function api_staff(serviceId) {
+  if (!serviceId) throw new Error('missing_service_id');
+  return SettingsRepo.listStaffForService(serviceId);
+}
+
+function api_availability(serviceId, staffId, date) {
+  if (!serviceId || !staffId || !date) throw new Error('missing_params');
+  var svc = SettingsRepo.getServiceById(serviceId);
+  if (!svc) throw new Error('service_not_found');
+  var orders = OrdersRepo.listForStaffOnDate(staffId, date);
+  return SlotCalculator.compute({
+    date: date,
+    staffId: staffId,
+    durationMin: svc.duration_min,
+    schedule: SettingsRepo.getSchedule(),
+    holidays: SettingsRepo.getHolidays(),
+    orders: orders
+  });
+}
+
+function api_booking(idToken, serviceId, staffId, startAt, note) {
+  return _unwrap(_handleBooking(_repos(), {
+    idToken: idToken,
+    service_id: serviceId,
+    staff_id: staffId,
+    start_at: startAt,
+    note: note || ''
+  }));
+}
+
+function api_cancel(idToken, orderId) {
+  return _unwrap(_handleCancel(_repos(), { idToken: idToken, order_id: orderId }));
+}
+
+function api_myBookings(idToken) {
+  if (!idToken) { var e = new Error('unauthenticated'); e.code = 'unauthenticated'; throw e; }
+  var user = AuthService.verify(idToken);
+  return OrdersRepo.listByUser(user.userId);
+}
+
 // Local-only DI hook
 if (typeof module !== 'undefined') {
   module.exports = { _dispatchGet, _dispatchPost, _setRepos(r) { _injectedRepos = r; } };
