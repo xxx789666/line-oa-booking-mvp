@@ -386,20 +386,20 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  subgraph Google ["xxx69579575@gmail.com（商家 Google 帳號）"]
+  subgraph Google ["商家 Google 帳號"]
     direction LR
     GAS_P["Apps Script 專案<br/>LINE-OA-Booking-MVP"]
     SS["Spreadsheet<br/>LINE-OA-Booking-Data"]
     CAL["Calendar<br/>LINE-OA-Booking"]
   end
 
-  subgraph LINE ["LINE Developers（XLINE-OA-Booking Provider）"]
+  subgraph LINE ["LINE Developers Provider"]
     direction LR
-    LOGIN["LINE Login Channel<br/>內含 LIFF App 預約系統<br/>Channel ID: 2010082504"]
-    MSG["Messaging API Channel<br/>= LINE OA「預約系統」<br/>短號 @568enjev"]
+    LOGIN["LINE Login Channel<br/>內含 LIFF App 預約系統<br/>Channel ID: ********"]
+    MSG["Messaging API Channel<br/>= LINE OA「預約系統」<br/>短號 @********"]
   end
 
-  subgraph GitHub ["xxx789666 GitHub"]
+  subgraph GitHub ["GitHub Account"]
     REPO["Repo: line-oa-booking-liff<br/>public, Pages enabled"]
   end
 
