@@ -1,12 +1,9 @@
 // src/repo/orders.js
 var OrdersRepo = (function () {
-  const Time = (typeof module !== 'undefined') ? require('../utils/time') : null;
-  const Id = (typeof module !== 'undefined') ? require('../utils/id') : null;
-  const LockHelper = (typeof module !== 'undefined') ? require('../utils/lock') : null;
-
-  const T = Time || (typeof globalThis !== 'undefined' ? globalThis.Time : null);
-  const I = Id || (typeof globalThis !== 'undefined' ? globalThis.Id : null);
-  const L = LockHelper || (typeof globalThis !== 'undefined' ? globalThis.LockHelper : null);
+  // Lazy module resolution — globals may not exist when this IIFE runs.
+  function _T() { return (typeof module !== 'undefined') ? require('../utils/time') : Time; }
+  function _I() { return (typeof module !== 'undefined') ? require('../utils/id') : Id; }
+  function _L() { return (typeof module !== 'undefined') ? require('../utils/lock') : LockHelper; }
 
   const SHEET = 'Orders';
 
@@ -33,7 +30,7 @@ var OrdersRepo = (function () {
     return rows.filter(r =>
       r.status === 'confirmed' &&
       r.staff_id === staffId &&
-      T.toDateString(new Date(r.start_at)) === dateStr
+      _T().toDateString(new Date(r.start_at)) === dateStr
     );
   }
 
@@ -65,14 +62,14 @@ var OrdersRepo = (function () {
   }
 
   function create(input) {
-    return L.withLock(function () {
+    return _L().withLock(function () {
       const { header, rows, sheet } = _readAll();
       if (_conflict(rows, input.staff_id, input.start_at)) {
         const err = new Error('slot_taken');
         err.code = 'slot_taken';
         throw err;
       }
-      const orderId = I.newOrderId();
+      const orderId = _I().newOrderId();
       const newRow = {
         order_id: orderId,
         created_at: new Date().toISOString(),

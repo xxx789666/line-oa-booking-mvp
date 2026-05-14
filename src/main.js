@@ -49,15 +49,23 @@ function _dispatchGet(e) {
       });
       return _ok({ slots });
     }
+    if (action === '_debug') {
+      return _ok({
+        schedule: r.settings.getSchedule(),
+        holidays: r.settings.getHolidays(),
+        staff: r.settings.listStaff()
+      });
+    }
     if (action === 'myBookings') {
       if (!p.idToken) return _err('unauthenticated', 401);
       const user = r.auth.verify(p.idToken);
       return _ok({ orders: r.orders.listByUser(user.userId) });
     }
     return _err('unknown_action', 404);
-  } catch (e) {
-    const code = e && e.code ? e.code : 'internal_error';
-    return _err(code, code === 'unauthenticated' ? 401 : 500);
+  } catch (err) {
+    const code = err && err.code ? err.code : 'internal_error';
+    // DEBUG: include actual error message in response (remove once stable)
+    return { type: 'json', body: { error: code, debug_message: String(err && err.message || err), debug_stack: String(err && err.stack || '').slice(0, 500) }, status: code === 'unauthenticated' ? 401 : 500 };
   }
 }
 
@@ -83,9 +91,9 @@ function _dispatchPost(e) {
     if (action === 'booking') return _handleBooking(r, body);
     if (action === 'cancel') return _handleCancel(r, body);
     return _err('unknown_action', 404);
-  } catch (e) {
-    const code = e && e.code ? e.code : 'internal_error';
-    return _err(code, code === 'unauthenticated' ? 401 : 500);
+  } catch (err) {
+    const code = err && err.code ? err.code : 'internal_error';
+    return { type: 'json', body: { error: code, debug_message: String(err && err.message || err), debug_stack: String(err && err.stack || '').slice(0, 800) }, status: code === 'unauthenticated' ? 401 : 500 };
   }
 }
 

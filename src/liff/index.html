@@ -104,11 +104,25 @@
     dbg(`google.script.run=${typeof google !== 'undefined' && google.script ? 'OK' : 'MISSING'}`);
     try {
       dbg('calling liff.init...');
-      await liff.init({ liffId: LIFF_ID });
+      await liff.init({ liffId: LIFF_ID, withLoginOnExternalBrowser: true });
       dbg('liff.init OK');
+      dbg(`isInClient=${liff.isInClient()}`);
+      dbg(`os=${liff.getOS()}`);
       if (!liff.isLoggedIn()) {
-        dbg('not logged in, redirecting');
-        liff.login();
+        dbg('not logged in — showing manual login button');
+        $app.innerHTML = `
+          <div style="text-align:center;padding:40px 20px;">
+            <p style="margin-bottom:16px;color:#666;">需要先登入 LINE</p>
+            <button id="login-btn" class="primary" style="width:100%;padding:14px;background:#06C755;color:white;border:0;border-radius:8px;font-size:16px;font-weight:600;">使用 LINE 登入</button>
+            <p style="margin-top:24px;font-size:12px;color:#999;">
+              isInClient=${liff.isInClient()}<br>
+              如果你已在 LINE App 內，這個按鈕可能會把你帶到 LINE 授權頁
+            </p>
+          </div>`;
+        document.getElementById('login-btn').addEventListener('click', function () {
+          dbg('manual login clicked');
+          try { liff.login(); } catch (e) { dbg(`login throw: ${e.message}`); }
+        });
         return;
       }
       dbg('isLoggedIn=true');

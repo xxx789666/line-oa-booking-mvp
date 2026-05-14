@@ -9,7 +9,22 @@ var SettingsRepo = (function () {
   }
 
   function _trim(v) {
-    return typeof v === 'string' ? v.trim() : v;
+    if (typeof v === 'string') return v.trim();
+    // Google Sheets auto-converts "10:00" cells into Date objects anchored at
+    // 1899-12-30. Re-stringify as "HH:mm" using spreadsheet's timezone so the
+    // hour reflects what the user typed (e.g. 10:00 Taipei not 02:00 UTC).
+    if (v instanceof Date && v.getUTCFullYear() < 1950) {
+      if (typeof Utilities !== 'undefined' && Utilities.formatDate) {
+        var tz = (typeof Session !== 'undefined' && Session.getScriptTimeZone)
+          ? Session.getScriptTimeZone() : 'Asia/Taipei';
+        return Utilities.formatDate(v, tz, 'HH:mm');
+      }
+      // Jest fallback
+      var hh = String(v.getUTCHours()).padStart(2, '0');
+      var mm = String(v.getUTCMinutes()).padStart(2, '0');
+      return hh + ':' + mm;
+    }
+    return v;
   }
 
   function _readSheet(sheetName) {
