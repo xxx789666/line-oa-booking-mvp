@@ -1,8 +1,18 @@
 // src/liff/app.html
 // LIFF app — five-step flow: services → staff → date → time → confirm.
 // Communicates with GAS backend via google.script.run (no CORS issues).
+// IMPORTANT: use template literals throughout. GAS HtmlService's include()
+// HTML-encodes the JS `+` operator into &#43; when surrounded by quoted
+// strings, which breaks string-concat patterns silently. Template literals
+// `${}` survive intact.
 
 (function () {
+  // Mark JS as actually running — this overwrites the static "JS NOT RUN" marker.
+  try {
+    var bm = document.getElementById('bootmark');
+    if (bm) { bm.textContent = 'JS RUNNING'; bm.style.background = '#0a0'; }
+  } catch (e) {}
+
   const LIFF_ID = window.__LIFF_ID__;
 
   const state = {
@@ -18,13 +28,49 @@
 
   function setTitle(t) { $title.textContent = t; }
 
-  // Promise wrapper around google.script.run
+  function dbg(msg) {
+    var p = document.getElementById('__dbg__');
+    if (!p) {
+      p = document.createElement('pre');
+      p.id = '__dbg__';
+      p.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;background:#222;color:#0f0;font:11px monospace;padding:6px;margin:0;z-index:9999;white-space:pre-wrap;';
+      document.body.appendChild(p);
+    }
+    var t = new Date().toISOString().slice(11, 19);
+    p.textContent = `${p.textContent}[${t}] ${msg}\n`;
+    p.scrollTop = p.scrollHeight;
+  }
+
+  // Promise wrapper around google.script.run (with 15s timeout)
   function gasCall(fnName) {
     const args = Array.prototype.slice.call(arguments, 1);
+    dbg(`gasCall ${fnName}(${args.length} args)`);
     return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        dbg(`  TIMEOUT after 15s: ${fnName}`);
+        reject(new Error(`Timeout: ${fnName}`));
+      }, 15000);
+
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        clearTimeout(timer); done = true;
+        dbg('  ERROR: google.script.run NOT AVAILABLE');
+        reject(new Error('google.script.run not available'));
+        return;
+      }
+
       const runner = google.script.run
-        .withSuccessHandler(resolve)
+        .withSuccessHandler(function (data) {
+          if (done) return; done = true; clearTimeout(timer);
+          var summary = Array.isArray(data) ? `array(${data.length})` : typeof data;
+          dbg(`  OK ${fnName} -> ${summary}`);
+          resolve(data);
+        })
         .withFailureHandler(function (err) {
+          if (done) return; done = true; clearTimeout(timer);
+          dbg(`  FAIL ${fnName}: ${(err && err.message) || String(err)}`);
           reject(new Error((err && err.message) || String(err)));
         });
       runner[fnName].apply(runner, args);
@@ -32,17 +78,28 @@
   }
 
   async function init() {
+    dbg('init() called');
+    dbg(`LIFF_ID=${LIFF_ID}`);
+    dbg(`liff SDK=${typeof liff !== 'undefined' ? 'OK' : 'MISSING'}`);
+    dbg(`google.script.run=${typeof google !== 'undefined' && google.script ? 'OK' : 'MISSING'}`);
     try {
+      dbg('calling liff.init...');
       await liff.init({ liffId: LIFF_ID });
+      dbg('liff.init OK');
       if (!liff.isLoggedIn()) {
+        dbg('not logged in, redirecting');
         liff.login();
         return;
       }
+      dbg('isLoggedIn=true');
       state.idToken = liff.getIDToken();
+      dbg(`idToken len=${(state.idToken || '').length}`);
       state.profile = await liff.getProfile();
+      dbg(`profile=${state.profile.displayName}`);
       renderServices();
     } catch (e) {
-      $app.innerHTML = '<div class="error">無法初始化 LIFF：' + e.message + '</div>';
+      dbg(`INIT ERROR: ${e.message}`);
+      $app.innerHTML = `<div class="error">無法初始化 LIFF：${e.message}</div>`;
     }
   }
 
@@ -51,7 +108,7 @@
   }
 
   function renderError(msg) {
-    $app.innerHTML = '<div class="error">' + msg + '</div>';
+    $app.innerHTML = `<div class="error">${msg}</div>`;
   }
 
   async function renderServices() {
@@ -66,11 +123,11 @@
         return;
       }
       $app.innerHTML = services.map(function (s) {
-        return '<button class="card" data-id="' + s.service_id + '">' +
-          '<div class="card-title">' + s.name + '</div>' +
-          '<div class="card-meta">' + s.duration_min + ' 分鐘 · NT$ ' + s.price + '</div>' +
-          '<div class="card-desc">' + (s.description || '') + '</div>' +
-          '</button>';
+        return `<button class="card" data-id="${s.service_id}">
+          <div class="card-title">${s.name}</div>
+          <div class="card-meta">${s.duration_min} 分鐘 · NT$ ${s.price}</div>
+          <div class="card-desc">${s.description || ''}</div>
+        </button>`;
       }).join('');
       $app.querySelectorAll('button.card').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -79,7 +136,7 @@
         });
       });
     } catch (e) {
-      renderError('讀取服務失敗：' + e.message);
+      renderError(`讀取服務失敗：${e.message}`);
     }
   }
 
@@ -95,10 +152,11 @@
         return;
       }
       $app.innerHTML = staff.map(function (s) {
-        return '<button class="card" data-id="' + s.staff_id + '">' +
-          (s.photo_url ? '<img class="avatar" src="' + s.photo_url + '">' : '') +
-          '<div class="card-title">' + s.name + '</div>' +
-          '</button>';
+        const avatar = s.photo_url ? `<img class="avatar" src="${s.photo_url}">` : '';
+        return `<button class="card" data-id="${s.staff_id}">
+          ${avatar}
+          <div class="card-title">${s.name}</div>
+        </button>`;
       }).join('');
       $app.querySelectorAll('button.card').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -107,7 +165,7 @@
         });
       });
     } catch (e) {
-      renderError('讀取人員失敗：' + e.message);
+      renderError(`讀取人員失敗：${e.message}`);
     }
   }
 
@@ -123,15 +181,15 @@
       const iso = d.toISOString().slice(0, 10);
       days.push({
         iso: iso,
-        label: (d.getMonth() + 1) + '/' + d.getDate(),
+        label: `${d.getMonth() + 1}/${d.getDate()}`,
         dow: ['日','一','二','三','四','五','六'][d.getDay()]
       });
     }
-    $app.innerHTML = '<div class="grid-dates">' +
+    $app.innerHTML = `<div class="grid-dates">${
       days.map(function (d) {
-        return '<button class="date-cell" data-iso="' + d.iso + '"><span>' + d.label + '</span><small>' + d.dow + '</small></button>';
-      }).join('') +
-      '</div>';
+        return `<button class="date-cell" data-iso="${d.iso}"><span>${d.label}</span><small>${d.dow}</small></button>`;
+      }).join('')
+    }</div>`;
     $app.querySelectorAll('.date-cell').forEach(function (btn) {
       btn.addEventListener('click', function () {
         state.selected.date = btn.dataset.iso;
@@ -142,7 +200,7 @@
 
   async function renderTime() {
     state.step = 'time';
-    setTitle(state.selected.date + ' 可預約時段');
+    setTitle(`${state.selected.date} 可預約時段`);
     $back.onclick = renderDate;
     renderLoading();
     try {
@@ -156,9 +214,9 @@
         $app.innerHTML = '<div class="empty">這天沒有可預約時段</div>';
         return;
       }
-      $app.innerHTML = '<div class="grid-times">' +
-        slots.map(function (t) { return '<button class="time-cell">' + t + '</button>'; }).join('') +
-        '</div>';
+      $app.innerHTML = `<div class="grid-times">${
+        slots.map(function (t) { return `<button class="time-cell">${t}</button>`; }).join('')
+      }</div>`;
       $app.querySelectorAll('.time-cell').forEach(function (btn) {
         btn.addEventListener('click', function () {
           state.selected.time = btn.textContent;
@@ -166,7 +224,7 @@
         });
       });
     } catch (e) {
-      renderError('讀取時段失敗：' + e.message);
+      renderError(`讀取時段失敗：${e.message}`);
     }
   }
 
@@ -175,15 +233,15 @@
     setTitle('確認預約');
     $back.onclick = renderTime;
     const s = state.selected;
-    $app.innerHTML =
-      '<div class="summary">' +
-        '<div><b>服務：</b>' + s.service.name + '</div>' +
-        '<div><b>人員：</b>' + s.staff.name + '</div>' +
-        '<div><b>日期：</b>' + s.date + '</div>' +
-        '<div><b>時段：</b>' + s.time + '</div>' +
-        '<div><b>金額：</b>NT$ ' + s.service.price + '</div>' +
-      '</div>' +
-      '<button id="submit" class="primary">確認下訂並付款</button>';
+    $app.innerHTML = `
+      <div class="summary">
+        <div><b>服務：</b>${s.service.name}</div>
+        <div><b>人員：</b>${s.staff.name}</div>
+        <div><b>日期：</b>${s.date}</div>
+        <div><b>時段：</b>${s.time}</div>
+        <div><b>金額：</b>NT$ ${s.service.price}</div>
+      </div>
+      <button id="submit" class="primary">確認下訂並付款</button>`;
     document.getElementById('submit').addEventListener('click', submitBooking);
   }
 
@@ -206,17 +264,17 @@
         startAtIso,
         ''
       );
-      $app.innerHTML =
-        '<div class="success">' +
-          '<div class="big-check">✓</div>' +
-          '<div>預約成功！</div>' +
-          '<div class="small">訂單編號：' + result.order_id + '</div>' +
-          '<button class="primary" onclick="liff.closeWindow()">回到 LINE</button>' +
-        '</div>';
+      $app.innerHTML = `
+        <div class="success">
+          <div class="big-check">✓</div>
+          <div>預約成功！</div>
+          <div class="small">訂單編號：${result.order_id}</div>
+          <button class="primary" onclick="liff.closeWindow()">回到 LINE</button>
+        </div>`;
       $back.hidden = true;
     } catch (e) {
       btn.disabled = false; btn.textContent = '確認下訂並付款';
-      alert('預約失敗：' + e.message);
+      alert(`預約失敗：${e.message}`);
     }
   }
 

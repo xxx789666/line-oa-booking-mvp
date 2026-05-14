@@ -179,7 +179,11 @@ function doPost(e) {
 }
 
 function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+  // Use createTemplateFromFile (not createHtmlOutputFromFile) so that JS
+  // content like `<`, `+` inside quoted strings is NOT HTML-escaped on output.
+  // createHtmlOutputFromFile parses the file as HTML and escapes such tokens,
+  // breaking embedded JavaScript.
+  return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
 }
 
 // ===========================================================================
